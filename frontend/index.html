@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sahayata Atlas — find help near you</title>
+<meta name="description" content="Find hospitals, clinics, shelters, and public facilities near any city or location in India." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap header-row">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1>Sahayata Atlas</h1>
+        <p class="tagline">Find hospitals, shelters, and public facilities near you</p>
+      </div>
+    </div>
+    <div class="conn-status" id="connStatus" role="status" aria-live="polite">
+      <span class="dot" id="connDot" aria-hidden="true"></span>
+      <span id="connLabel">Checking connection…</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="search-panel" aria-label="Search for resources">
+    <form id="searchForm" novalidate>
+      <div class="field-row">
+        <label class="visually-hidden" for="cityInput">City in India</label>
+        <input
+          type="text"
+          id="cityInput"
+          name="city"
+          placeholder="Enter a city — e.g. Mumbai, Lucknow, Kochi"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button type="button" id="useLocationBtn" class="btn btn-ghost">
+          Use my location
+        </button>
+        <button type="submit" class="btn btn-primary" id="searchBtn">
+          Search
+        </button>
+      </div>
+
+      <fieldset class="radius-row">
+        <legend class="visually-hidden">Search radius</legend>
+        <span class="radius-label">Radius</span>
+        <div class="radius-chips" id="radiusChips" role="radiogroup" aria-label="Search radius in kilometres">
+          <button type="button" class="chip" data-radius="5">5 km</button>
+          <button type="button" class="chip is-selected" data-radius="10">10 km</button>
+          <button type="button" class="chip" data-radius="25">25 km</button>
+          <button type="button" class="chip" data-radius="50">50 km</button>
+        </div>
+      </fieldset>
+    </form>
+    <p class="coord-readout" id="coordReadout" hidden></p>
+  </section>
+
+  <section class="results-section" aria-live="polite">
+
+    <div id="stateIdle" class="state-block">
+      <p class="state-heading">Search by city or share your location</p>
+      <p class="state-body">Results are limited to India and sorted by distance. Nothing is saved after your search completes.</p>
+    </div>
+
+    <div id="stateLoading" class="state-block" hidden>
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="state-heading">Searching nearby resources…</p>
+    </div>
+
+    <div id="stateError" class="state-block state-error" hidden>
+      <p class="state-heading" id="errorHeading">Something went wrong</p>
+      <p class="state-body" id="errorBody"></p>
+      <button type="button" class="btn btn-primary" id="retryBtn" hidden>Try again</button>
+    </div>
+
+    <div id="stateEmpty" class="state-block" hidden>
+      <p class="state-heading">No listed resources in this radius</p>
+      <p class="state-body">Try a larger radius, or check the location and spelling of the city.</p>
+    </div>
+
+    <div id="resultsWrap" hidden>
+      <div class="results-meta">
+        <div class="location-line">
+          <h2 id="locationName"></h2>
+          <p id="locationSub"></p>
+        </div>
+        <div class="results-count">
+          <span id="resultsCount"></span>
+        </div>
+      </div>
+
+      <div id="coverageWarning" class="coverage-warning" hidden></div>
+
+      <ul id="resultsList" class="results-list"></ul>
+    </div>
+
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Listings are aggregated from public map data and may be incomplete. "Listed" does not confirm a facility is open, staffed, or has capacity right now — call ahead if you can.</p>
+  </div>
+</footer>
+
+<script src="static/config.js"></script>
+<script src="static/app.js"></script>
+</body>
+</html>
