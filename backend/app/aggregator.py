@@ -150,25 +150,38 @@ async def aggregate_resources(location, radius_km: int):
     elements = []
 
     overpass_servers = [
-        "https://overpass-api.de/api/interpreter",
-        "https://overpass.kumi.systems/api/interpreter",
-        "https://overpass.nchc.org.tw/api/interpreter",
-    ]
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+]
 
-    headers = {
-        "User-Agent": "SahayataAtlas/1.0"
-    }
+headers = {
+    "User-Agent": "SahayataAtlas/1.0 (emergency resource map)"
+}
+
+timeout = httpx.Timeout(
+    connect=10.0,
+    read=45.0,
+    write=20.0,
+    pool=10.0,
+)
+
+async with httpx.AsyncClient(
+    timeout=timeout,
+    follow_redirects=True,
+    headers=headers,
+) as client:
 
     for server in overpass_servers:
         try:
             print(f"Trying Overpass server: {server}")
 
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.post(
-                    server,
-                    data={"data": query},
-                    headers=headers,
-                )
+            resp = await client.post(
+                server,
+                content=query,
+                headers={
+                    "Content-Type": "text/plain",
+                },
+            )
 
             print(f"Overpass status: {resp.status_code}")
 
@@ -178,18 +191,30 @@ async def aggregate_resources(location, radius_km: int):
 
                 print(f"Found {len(elements)} elements")
 
-                break
+                if elements:
+                    break
 
-        except Exception as e:
-            print(f"Overpass server failed: {server}")
+            else:
+                print(f"Overpass returned HTTP {resp.status_code}")
+
+        except httpx.TimeoutException:
+            print(f"Overpass timed out: {server}")
+
+        except httpx.HTTPError as e:
+            print(f"Overpass request failed: {server}")
             print(str(e))
 
-    if not elements:
-        warnings.append(
-            "Live facility data is temporarily unavailable."
-        )
-        is_partial = True
+        except Exception as e:
+            print(f"Unexpected Overpass error: {server}")
+            print(str(e))
 
+
+if not elements:
+    warnings.append(
+        "Live facility data is temporarily unavailable."
+    )
+    is_partial = True
+    
     seen = {}
 
     for el in elements:
