@@ -71,7 +71,12 @@ async def resolve_city(city: str) -> ResolvedLocation:
     }
     headers = {"User-Agent": settings.nominatim_user_agent}
     try:
-        async with httpx.AsyncClient(timeout=settings.request_timeout_seconds) as client:
+        timeout = httpx.Timeout(20.0, connect=10.0)
+
+async with httpx.AsyncClient(
+    timeout=timeout,
+    follow_redirects=True
+) as client:
             resp = await client.get(f"{settings.nominatim_base_url}/search", params=params, headers=headers)
     except httpx.TimeoutException as e:
         raise LocationError(504, "UPSTREAM_TIMEOUT", "Location lookup timed out. Please try again.") from e
@@ -79,7 +84,14 @@ async def resolve_city(city: str) -> ResolvedLocation:
         raise LocationError(502, "UPSTREAM_FAILURE", "Location lookup service failed. Please try again.") from e
 
     if resp.status_code != 200:
-        raise LocationError(502, "UPSTREAM_FAILURE", "Location lookup service failed. Please try again.")
+    print("Nominatim status:", resp.status_code)
+    print("Nominatim response:", resp.text[:500])
+
+    raise LocationError(
+        502,
+        "UPSTREAM_FAILURE",
+        "Location lookup service failed. Please try again."
+    )
 
     results = resp.json()
     if not results:
