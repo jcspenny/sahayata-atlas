@@ -69,45 +69,82 @@ async def resolve_city(city: str) -> ResolvedLocation:
         "addressdetails": 1,
         "limit": 1,
     }
-    headers = {"User-Agent": settings.nominatim_user_agent}
+
+    headers = {
+        "User-Agent": settings.nominatim_user_agent
+    }
+
     try:
         timeout = httpx.Timeout(20.0, connect=10.0)
 
-async with httpx.AsyncClient(
-    timeout=timeout,
-    follow_redirects=True
-) as client:
-            resp = await client.get(f"{settings.nominatim_base_url}/search", params=params, headers=headers)
+        async with httpx.AsyncClient(
+            timeout=timeout,
+            follow_redirects=True
+        ) as client:
+            resp = await client.get(
+                f"{settings.nominatim_base_url}/search",
+                params=params,
+                headers=headers,
+            )
+
     except httpx.TimeoutException as e:
-        raise LocationError(504, "UPSTREAM_TIMEOUT", "Location lookup timed out. Please try again.") from e
+        raise LocationError(
+            504,
+            "UPSTREAM_TIMEOUT",
+            "Location lookup timed out. Please try again."
+        ) from e
+
     except httpx.HTTPError as e:
-        raise LocationError(502, "UPSTREAM_FAILURE", "Location lookup service failed. Please try again.") from e
+        raise LocationError(
+            502,
+            "UPSTREAM_FAILURE",
+            "Location lookup service failed. Please try again."
+        ) from e
 
     if resp.status_code != 200:
-    print("Nominatim status:", resp.status_code)
-    print("Nominatim response:", resp.text[:500])
+        print("Nominatim status:", resp.status_code)
+        print("Nominatim response:", resp.text[:500])
 
-    raise LocationError(
-        502,
-        "UPSTREAM_FAILURE",
-        "Location lookup service failed. Please try again."
-    )
+        raise LocationError(
+            502,
+            "UPSTREAM_FAILURE",
+            "Location lookup service failed. Please try again."
+        )
 
     results = resp.json()
+
     if not results:
-        raise LocationError(404, "LOCATION_NOT_FOUND", "That city could not be found in India.")
+        raise LocationError(
+            404,
+            "LOCATION_NOT_FOUND",
+            "That city could not be found in India."
+        )
 
     top = results[0]
     address = top.get("address", {})
+
     country_code = (address.get("country_code") or "").upper()
+
     if country_code != "IN":
-        raise LocationError(404, "LOCATION_NOT_FOUND", "That city could not be found in India.")
+        raise LocationError(
+            404,
+            "LOCATION_NOT_FOUND",
+            "That city could not be found in India."
+        )
 
     resolved_city = (
-        address.get("city") or address.get("town") or address.get("village")
-        or address.get("municipality") or city
+        address.get("city")
+        or address.get("town")
+        or address.get("village")
+        or address.get("municipality")
+        or city
     )
-    district = address.get("state_district") or address.get("county")
+
+    district = (
+        address.get("state_district")
+        or address.get("county")
+    )
+
     state = address.get("state")
 
     return ResolvedLocation(
@@ -120,7 +157,6 @@ async with httpx.AsyncClient(
         latitude=float(top["lat"]),
         longitude=float(top["lon"]),
     )
-
 
 async def resolve_coordinates(latitude: float, longitude: float) -> ResolvedLocation:
     if not (INDIA_BBOX["min_lat"] <= latitude <= INDIA_BBOX["max_lat"]
