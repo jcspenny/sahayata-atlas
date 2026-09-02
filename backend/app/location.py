@@ -5,6 +5,7 @@ Location resolution.
 - Coordinate mode: validate range and reverse-geocode to check the point
   falls within the supported Indian service area.
 """
+import asyncio
 import httpx
 
 from app.config import settings
@@ -74,37 +75,55 @@ async def resolve_city(city: str) -> ResolvedLocation:
         "User-Agent": settings.nominatim_user_agent
     }
 
-    try:
-        timeout = httpx.Timeout(20.0, connect=10.0)
+    max_attempts = 3
 
-        async with httpx.AsyncClient(
-            timeout=timeout,
-            follow_redirects=True
-        ) as client:
-            resp = await client.get(
-                f"{settings.nominatim_base_url}/search",
-                params=params,
-                headers=headers,
+    for attempt in range(max_attempts):
+        try:
+            async with httpx.AsyncClient(
+                timeout=settings.request_timeout_seconds
+            ) as client:
+                resp = await client.get(
+                    f"{settings.nominatim_base_url}/search",
+                    params=params,
+                    headers=headers,
+                )
+
+            if resp.status_code == 200:
+                break
+
+            if resp.status_code == 429 and attempt < max_attempts - 1:
+                await asyncio.sleep(2 * (attempt + 1))
+                continue
+
+            raise LocationError(
+                502,
+                "UPSTREAM_FAILURE",
+                "Location lookup service is temporarily unavailable. Please try again."
             )
 
-    except httpx.TimeoutException as e:
-        raise LocationError(
-            504,
-            "UPSTREAM_TIMEOUT",
-            "Location lookup timed out. Please try again."
-        ) from e
+        except httpx.TimeoutException as e:
+            if attempt < max_attempts - 1:
+                await asyncio.sleep(2 * (attempt + 1))
+                continue
 
-    except httpx.HTTPError as e:
-        raise LocationError(
-            502,
-            "UPSTREAM_FAILURE",
-            "Location lookup service failed. Please try again."
-        ) from e
+            raise LocationError(
+                504,
+                "UPSTREAM_TIMEOUT",
+                "Location lookup timed out. Please try again."
+            ) from e
 
-    if resp.status_code != 200:
-        print("Nominatim status:", resp.status_code)
-        print("Nominatim response:", resp.text[:500])
+        except httpx.HTTPError as e:
+            if attempt < max_attempts - 1:
+                await asyncio.sleep(2 * (attempt + 1))
+                continue
 
+            raise LocationError(
+                502,
+                "UPSTREAM_FAILURE",
+                "Location lookup service failed. Please try again."
+            ) from e
+
+    else:
         raise LocationError(
             502,
             "UPSTREAM_FAILURE",
